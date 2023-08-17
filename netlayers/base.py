@@ -82,6 +82,7 @@ class CapTPSocket(socket.socket):
 
     def send_message(self, message):
         """ Send data to the remote machine """
+        print(('S---', message), flush=True)
         if isinstance(message, CapTPType):
             message = message.to_syrup()
         self.sendall(message)
@@ -91,6 +92,7 @@ class CapTPSocket(socket.socket):
         socketio = ReadSocketIO(self, timeout=timeout)
         encoded_message = syrup.syrup_read(socketio)
         assert isinstance(encoded_message, syrup.Record)
+        print(('---R', decode_captp_message(encoded_message)), flush=True)
         return decode_captp_message(encoded_message)
 
 
@@ -102,9 +104,9 @@ class Netlayer(ABC):
     @abstractmethod
     def connect(self, ocapn_machine: OCapNMachine) -> CapTPSession:
         """ Connect to a remote machine returning a connection """
-        pass
+        print("CONNECT", ocapn_machine, flush=True)
 
     @abstractmethod
     def accept(self) -> CapTPSession:
         """ Accept a connection from a remote machine returning a connection """
-        pass
+        print("ACCEPT", flush=True)

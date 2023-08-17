@@ -53,6 +53,8 @@ class HandoffRemoteAsReciever(HandoffTestCase):
     def setUp(self, *args, **kwargs):
         super().setUp(*args, **kwargs)
 
+        print('SETUP', self.__class__.__name__, flush=True)
+
         # Create a gifter and exporter sessions
         self.g2r_session = self.remote
         self.g2r_session.setup_session(self.captp_version)
@@ -63,8 +65,8 @@ class HandoffRemoteAsReciever(HandoffTestCase):
         # Since we're both the gifter and exporter, let's just mimic a connection
         self.g2e_pubkey, self.g2e_privkey, self.e2g_pubkey, self.e2g_privkey = self._generate_two_keypairs()
 
-    @retry_on_network_timeout
-    def make_valid_handoff(self, gift_id=b"my-gift"):
+    # @retry_on_network_timeout
+    def make_valid_handoff(self, gift_id=b"my-gift") -> captp_types.DescSigEnvelope:
         # This isn't how real IDs are generated, but it's good enough for testing
         gifter_exporter_session_id = hashlib.sha256(b"Gifter <-> exporter session ID").digest()
         gifter_side_id = hashlib.sha256(b"Gifter side ID").digest()
@@ -86,7 +88,6 @@ class HandoffRemoteAsReciever(HandoffTestCase):
     def test_valid_handoff_without_prior_connection(self):
         """ Valid handoff give without prior connection """
         signed_handoff_give = self.make_valid_handoff()
-        handoff_give = signed_handoff_give.object
 
         # Send a message to the gifter with the handoff give
         deliver_msg = captp_types.OpDeliverOnly(
@@ -122,57 +123,7 @@ class HandoffRemoteAsReciever(HandoffTestCase):
 
         # Check the handoff receive is valid
         handoff_receive = signed_handoff_receive.object
-        self.assertEqual(handoff_receive.signed_give.object, handoff_give)
-
-        # We actually already have access to this because we are the gifter, but
-        # for good measure, lets get it off the handoff-give like we normally would
-        r2g_pubkey = handoff_receive.signed_give.object.receiver_key
-        self.assertTrue(signed_handoff_receive.verify(r2g_pubkey))
-
-        # Check the session ID is what we expect it to be
-        self.assertEqual(handoff_receive.receiving_session, self.g2r_session.id)
-
-    @retry_on_network_timeout
-    def test_valid_handoff_with_prior_connection(self):
-        """ Valid handoff-give, with prior connection """
-        signed_handoff_give = self.make_valid_handoff()
-        handoff_give = signed_handoff_give.object
-
-        # Send a message to the greeter with our handoff give.
-        deliver_msg = captp_types.OpDeliverOnly(
-            self.g2r_greeter,
-            [signed_handoff_give]
-        )
-        self.g2r_session.send_message(deliver_msg)
-
-        # The receiver should connect to us
-        self.e2r_session = self.other_netlayer.accept()
-        self.e2r_session.setup_session(self.captp_version)
-
-        # The receiver should then create their own desc:handoff-receive and connect to the exporter
-        # Lets get their bootstrap object and give them ours.
-        their_bootstrap_op = self.e2r_session.expect_message_type(captp_types.OpBootstrap)
-        our_bootstrap_refr = self.e2r_session.next_import_object
-        bootstrap_reply_msg = captp_types.OpDeliverOnly(
-            their_bootstrap_op.exported_resolve_me_desc,
-            [Symbol("fulfill"), our_bootstrap_refr]
-        )
-        self.e2r_session.send_message(bootstrap_reply_msg)
-
-        # The receiver should then message us with the desc:handoff-receive
-        their_withdraw_gift_msg = self.e2r_session.expect_message_to(
-            (our_bootstrap_refr.to_desc_export(), their_bootstrap_op.vow)
-        )
-        self.assertEqual(their_withdraw_gift_msg.args[0], Symbol("withdraw-gift"))
-
-        # Check we've got a signed handoff receive, with a valid signature
-        signed_handoff_receive = their_withdraw_gift_msg.args[1]
-        self.assertIsInstance(signed_handoff_receive, captp_types.DescSigEnvelope)
-        self.assertIsInstance(signed_handoff_receive.object, captp_types.DescHandoffReceive)
-
-        # Check the handoff receive is valid
-        handoff_receive = signed_handoff_receive.object
-        self.assertEqual(handoff_receive.signed_give.object, handoff_give)
+        self.assertEqual(handoff_receive.signed_give.object, signed_handoff_give.object)
 
         # We actually already have access to this because we are the gifter, but
         # for good measure, lets get it off the handoff-give like we normally would

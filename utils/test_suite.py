@@ -69,15 +69,32 @@ class CapTPTestCase(unittest.TestCase):
         return super().tearDown()
 
 
-def retry_on_network_timeout(func, retries=3):
+def retry_on_network_timeout(func, retries=1):
     """ Decorator which retries upon a network timeout """
     def wrapper(*args, **kwargs):
-        for i in range(retries):
-            try:
-                return func(*args, **kwargs)
-            except (TimeoutError, OSError):
-                # OSError can be raised when creating a tor daemon
-                # (should this be refactored into the tor netlayer?)
-                if i == retries - 1:
-                    raise
+        print(flush=True)
+        print("TEST {}.{}".format(args[0].__class__.__name__, func.__name__), flush=True)
+        try:
+            for i in range(retries):
+                try:
+                    res = func(*args, **kwargs)
+                except (TimeoutError, OSError):
+                    # OSError can be raised when creating a tor daemon
+                    # (should this be refactored into the tor netlayer?)
+                    if i == retries - 1:
+                        raise
+            print("TEST passed", flush=True)
+            return res
+        except Exception as e:
+            print("TEST oops", e.__class__.__name__, str(e), flush=True)
+            raise
+
+        # for i in range(retries):
+        #     try:
+        #         return func(*args, **kwargs)
+        #     except (TimeoutError, OSError):
+        #         # OSError can be raised when creating a tor daemon
+        #         # (should this be refactored into the tor netlayer?)
+        #         if i == retries - 1:
+        #             raise
     return wrapper

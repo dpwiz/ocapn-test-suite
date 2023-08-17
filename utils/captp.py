@@ -57,7 +57,7 @@ class CapTPSession:
 
         # Get their `op:start-session` message
         remote_start_session = self.receive_message()
-        assert isinstance(remote_start_session, captp_types.OpStartSession)
+        assert isinstance(remote_start_session, captp_types.OpStartSession), "op:start-session expected"
         self.remote_public_key = remote_start_session.session_pubkey
 
     def close(self):

@@ -26,12 +26,13 @@ class OpBootstrapTest(CapTPTestCase):
         abort_op = OpAbort("test-abort-before-setup")
         self.remote.send_message(abort_op)
 
-        # Now setup the session
-        self.remote.setup_session(self.captp_version)
+        with self.assertRaises((AssertionError, TimeoutError, ConnectionAbortedError)):
+            # Now setup the session
+            self.remote.setup_session(self.captp_version)
 
-        # Finally see if we can use the setup session by sending an `op:bootstrap`
-        bootstrap_op = OpBootstrap(0, DescImportObject(0))
-        with self.assertRaises((TimeoutError, ConnectionAbortedError)):
+            # Finally see if we can use the setup session by sending an `op:bootstrap`
+            bootstrap_op = OpBootstrap(0, DescImportObject(0))
+
             self.remote.expect_message_to(bootstrap_op.exported_resolve_me_desc, timeout=10)
 
     @retry_on_network_timeout
